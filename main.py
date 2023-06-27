@@ -8,13 +8,11 @@ from vocode.streaming.models.synthesizer import AzureSynthesizerConfig
 from vocode.streaming.synthesizer.azure_synthesizer import AzureSynthesizer
 from vocode.streaming.transcriber.azure_transcriber import AzureTranscriber
 from vocode.streaming.transcriber.azure_transcriber import AzureTranscriberConfig
-
-from vocode.streaming.agent.chat_gpt_agent import ChatGPTAgent
 from vocode.streaming.client_backend.conversation import ConversationRouter
 from vocode.streaming.models.message import BaseMessage
 
 # customized AzureChatGPTAgent
-from azureChatGPTAgent import AzureChatGPTAgent
+from azure_gpt_agent import AzureChatGPTAgent
 
 
 from dotenv import load_dotenv
@@ -32,8 +30,8 @@ conversation_router = ConversationRouter(
     # create agent
     agent=AzureChatGPTAgent(
         ChatGPTAgentConfig(
+            prompt_preamble="This is HSBC Hongkong customer service chatbot.",
             initial_message=BaseMessage(text=os.getenv("SPEECH_WELCOME_MESSAGE")),
-            prompt_preamble="Have a pleasant conversation about life",
             azure_params=AzureOpenAIConfig(
                 api_type=os.getenv("AZURE_OPENAI_API_TYPE"),
                 api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
