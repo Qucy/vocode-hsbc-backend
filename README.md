@@ -16,18 +16,21 @@ Please ensure that you have installed all necessary libraries and have valid cre
 ### Installing
 
 To install the required libraries for the application, run the following command:
+
 ```bash
 pip install -r requirements.txt
 ```
+
 This will install all the necessary libraries listed in the requirements.txt file.
 
 ### Running the Application
 
 To start the application, run the following command:
 
-```
+```bash
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
+
 This will start the application on port 8000 and make it accessible from any IP address.
 
 ## Usage
@@ -39,7 +42,8 @@ Once the backend and frontend are connected, the user can input spoken or writte
 ## Configuration
 
 To configure the application, create a .env file in the root directory of the project and set the following environment variables:
-```
+
+```.env
 AZURE_OPENAI_API_TYPE=[your API type]
 AZURE_OPENAI_API_KEY=[your API key]
 AZURE_OPENAI_API_BASE=[your Azure API endpoint]
@@ -50,7 +54,15 @@ AZURE_SPEECH_REGION=[your Azure Speech region]
 AZURE_SPEECH_VOICE_NAME=[your Azure TTS voice]
 SPEECH_WELCOME_MESSAGE=[your welcome message]
 ```
+
 Please replace the values in square brackets with your own values for the respective services and settings. These environment variables are used to configure the language and speech services used by the application, as well as to set other application settings such as the welcome message.
+
+## Testing
+
+```bash
+pip install pytest
+pytest -v
+```
 
 ## Deployment
 
@@ -62,6 +74,7 @@ Coming soon...
 - Qucy/Nicolas for frontend UI
 
 ### TODOs
+
 - UI enhancemeant, display script at left side of screen and display button at right side of screen
 - knowledge query tool hsbc.hk.com (Qucy)
 - news query (Steven)
@@ -70,4 +83,4 @@ Coming soon...
 
 ## License
 
-Not applicable
+Not applicable.
