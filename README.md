@@ -61,7 +61,8 @@ Please replace the values in square brackets with your own values for the respec
 
 ```bash
 pip install pytest
-pytest -v
+pytest -v -rP
+pytest ./tests/test_file.py::test_func
 ```
 
 ## Deployment

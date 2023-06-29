@@ -8,7 +8,15 @@ def send_post_request(
     headers: dict[str, str],
     has_timeout_already: bool = False,
 ) -> requests.models.Response:
-    """Send a post request to url with data in request_msg and header also."""
+    """
+    Send a post request to url with data in request_msg and header also.
+
+    :param url: The URL to send the post request to.
+    :param requestMsg: The data to be sent in the post request.
+    :param headers: The headers to be sent with the post request.
+    :param has_timeout_already: A flag to indicate if a timeout has already occurred.
+    :returns: The response from the post request.
+    """
     result = None
     try:
         result = requests.post(url, data=json.dumps(requestMsg), headers=headers)

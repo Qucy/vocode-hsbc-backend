@@ -1,11 +1,25 @@
 from .utils import send_post_request
 import datetime
 import json
+from dataclasses import dataclass
+
+
+@dataclass
+class NewsArticle:
+    id: str
+    creation_date: datetime.date
+    headline: str
 
 
 def create_rkd_authorisation(username: str, password: str, appid: str) -> str:
-    """Perform RKD Authorisation and return token if success."""
+    """
+    Perform Refinitiv Knowledge Direct (RKD) Authorisation and return token if success.
 
+    :param username: The username for RKD authorisation.
+    :param password: The password for RKD authorisation.
+    :param appid: The application ID for RKD authorisation.
+    :returns: The token if authorisation is successful, otherwise None.
+    """
     # create authentication request URL, message and header
     authenMsg = {
         "CreateServiceToken_Request_1": {
@@ -49,10 +63,20 @@ def create_rkd_base_header(username: str, password: str, app_id: str) -> dict[st
     return headers
 
 
-def freetext_query(
+def retrieve_freetext_query(
     base_header, query, n_weeks_prior: int, query_aspect="headline", lang="EN"
 ) -> list[dict[str, str]]:
-    """Perform free-text query on RKD; get headlines with query."""
+    """Perform free-text query on RKD; get headlines with query.
+    Documentation on output fields available:
+    https://support-portal.rkd.refinitiv.com/SupportSite/TestApi/Op?svc=News_1&op=RetrieveHeadlineML_1
+
+    :param base_header: Post request header containing auth token
+    :param query: Query string
+    :param n_weeks_prior: Freshness of news to search in num weeks
+    :param query_aspect: Where to search for query string; options: headline, body, both
+    :param lang: Language of news to search; options: ZH, EN, None or Others in Refinitiv
+    :returns: List of dictionaries containing news objects.
+    """
 
     today = datetime.datetime.now()
     n_weeks_prior = today - datetime.timedelta(weeks=n_weeks_prior)
@@ -97,21 +121,26 @@ def freetext_query(
     return results_freetext["HEADLINEML"]["HL"]
 
 
-def parse_freetext_result(
-    freetext_results: list[dict[str, str]]
-) -> list[dict[str, str]]
-    """Parse freetext results from RKD and return a list of dictionaries.
-    Ignore articles that are """
+def parse_freetext_result(freetext_results: list[dict[str, str]]) -> list[NewsArticle]:
+    """Parse freetext results from RKD and return a list of NewsArticle objects.
+    Ignore articles that do not have 'Usable' status.
+    :param freetext_results: A list of dictionaries containing freetext results from RKD.
+    :returns: A list of NewsArticle objects parsed from the freetext results.
+    """
     freetext_stories = []
     for ftr in freetext_results:
         # skip if story is not 'usable'
         if ftr["ST"] != "Usable":
             continue
+        # parse date
+        formatted_date = datetime.datetime.strptime(
+            ftr["CT"], "%Y-%m-%dT%H:%M:%S%z"
+        ).date()
         freetext_stories.append(
-            {
-                "id": ftr["ID"],
-                "creation_date": ftr["CT"],
-                "headline": ftr["HT"],
-            }
+            NewsArticle(
+                id=ftr["ID"],
+                creation_date=formatted_date,
+                headline=ftr["HT"],
+            )
         )
-    return pd.DataFrame(freetext_stories)
+    return freetext_stories
