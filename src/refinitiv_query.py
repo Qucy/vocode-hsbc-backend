@@ -51,7 +51,7 @@ def create_rkd_base_header(username: str, password: str, app_id: str) -> dict[st
 
 def freetext_query(
     base_header, query, n_weeks_prior: int, query_aspect="headline", lang="EN"
-):
+) -> list[dict[str, str]]:
     """Perform free-text query on RKD; get headlines with query."""
 
     today = datetime.datetime.now()
@@ -95,3 +95,23 @@ def freetext_query(
     if results_freetext["HEADLINEML"] is None:
         raise KeyError(f"No freetext results for {query}")
     return results_freetext["HEADLINEML"]["HL"]
+
+
+def parse_freetext_result(
+    freetext_results: list[dict[str, str]]
+) -> list[dict[str, str]]
+    """Parse freetext results from RKD and return a list of dictionaries.
+    Ignore articles that are """
+    freetext_stories = []
+    for ftr in freetext_results:
+        # skip if story is not 'usable'
+        if ftr["ST"] != "Usable":
+            continue
+        freetext_stories.append(
+            {
+                "id": ftr["ID"],
+                "creation_date": ftr["CT"],
+                "headline": ftr["HT"],
+            }
+        )
+    return pd.DataFrame(freetext_stories)
