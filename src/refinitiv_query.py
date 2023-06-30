@@ -63,7 +63,7 @@ def create_rkd_base_header(username: str, password: str, app_id: str) -> dict[st
     return headers
 
 
-def retrieve_freetext_query(
+def retrieve_freetext_headlines(
     base_header, query, n_weeks_prior: int, query_aspect="headline", lang="EN"
 ) -> list[dict[str, str]]:
     """Perform free-text query on RKD; get headlines with query.
@@ -121,14 +121,16 @@ def retrieve_freetext_query(
     return results_freetext["HEADLINEML"]["HL"]
 
 
-def parse_freetext_result(freetext_results: list[dict[str, str]]) -> list[NewsArticle]:
+def parse_freetext_headlines(
+    freetext_headlines: list[dict[str, str]]
+) -> list[NewsArticle]:
     """Parse freetext results from RKD and return a list of NewsArticle objects.
     Ignore articles that do not have 'Usable' status.
     :param freetext_results: A list of dictionaries containing freetext results from RKD.
     :returns: A list of NewsArticle objects parsed from the freetext results.
     """
     freetext_stories = []
-    for ftr in freetext_results:
+    for ftr in freetext_headlines:
         # skip if story is not 'usable'
         if ftr["ST"] != "Usable":
             continue

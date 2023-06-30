@@ -1,7 +1,7 @@
 from src.refinitiv_query import (
     create_rkd_base_header,
-    retrieve_freetext_query,
-    parse_freetext_result,
+    retrieve_freetext_headlines,
+    parse_freetext_headlines,
     NewsArticle,
 )
 import os
@@ -31,26 +31,30 @@ def test_retrieving_baseheader():
     assert "X-Trkd-Auth-Token" in base_header.keys()
 
 
-def test_freetext_query():
+def test_freetext_headline():
     """Test freetext query on RKD. Set a very generic query to ensure
     that there are results."""
 
     base_header = create_rkd_base_header(RKD_USERNAME, RKD_PASSWORD, RKD_APP_ID)
 
-    freetext_results = retrieve_freetext_query(base_header, "America", 4, "both", "EN")
+    freetext_results = retrieve_freetext_headlines(
+        base_header, "America", 4, "both", "EN"
+    )
     assert freetext_results is not None
     assert isinstance(freetext_results[0], dict)
 
 
-def test_parse_freetext_query():
+def test_parse_freetext_headline():
     """Test freetext query on RKD and the parser for it.
     Set a very generic query to ensure that there are results."""
 
     base_header = create_rkd_base_header(RKD_USERNAME, RKD_PASSWORD, RKD_APP_ID)
 
-    freetext_results = retrieve_freetext_query(base_header, "America", 4, "both", "EN")
+    freetext_results = retrieve_freetext_headlines(
+        base_header, "America", 4, "both", "EN"
+    )
 
-    freetext_news_articles = parse_freetext_result(freetext_results)
+    freetext_news_articles = parse_freetext_headlines(freetext_results)
     assert isinstance(freetext_news_articles, list)
     assert len(freetext_news_articles) > 0
 
