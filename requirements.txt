@@ -1,2 +1,5 @@
 vocode==0.1.110
 python-dotenv==1.0.0
+langchain==0.0.218
+pytest==7.4.0
+black==23.3.0
