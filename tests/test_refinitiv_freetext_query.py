@@ -103,6 +103,12 @@ def test_parse_news_stories():
         base_header, [article.id for article in freetext_news_articles]
     )
     news_stories_texts = parse_news_stories_texts(news_stories)
+
+    # assign news story texts to Article object
+    for idx, nst in enumerate(news_stories_texts):
+        freetext_news_articles[idx].story = nst
+
     assert isinstance(news_stories_texts, list)
     assert len(news_stories_texts) > 0
     assert isinstance(news_stories_texts[0], str)
+    assert isinstance(freetext_news_articles[0].story, str)

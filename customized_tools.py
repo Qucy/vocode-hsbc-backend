@@ -1,19 +1,74 @@
-
 """ This is a file for custom tools that you can use in the LLM agent
 """
 from langchain.tools import tool
 
+import os
+from dotenv import load_dotenv
+from langchain.llms import AzureOpenAI
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+from src.refinitiv_query import (
+    create_rkd_base_header,
+    parse_freetext_headlines,
+    parse_news_stories_texts,
+    retrieve_freetext_headlines,
+    retrieve_news_stories,
+)
+
+from src.langchain_summary import (
+    summarise_articles,
+    produce_meta_summary,
+)
+
+# load environment variables
+load_dotenv()
+
+# set global variables
+RKD_USERNAME = os.getenv("REFINITIV_USERNAME")
+RKD_PASSWORD = os.getenv("REFINITIV_PASSWORD")
+RKD_APP_ID = os.getenv("REFINITIV_APP_ID")
+
+# Create an instance of Azure OpenAI; find completions is faster than chat
+CHAT_LLM = AzureOpenAI(
+    deployment_name="text-davinci-003",
+    model_name="text-davinci-003",
+    temperature=0,
+    best_of=1,
+)
+TEXT_SPLITTER = RecursiveCharacterTextSplitter(chunk_size=7_000, chunk_overlap=400)
+
 
 @tool("Refinitiv freetext news search tool")
-def refinitiv_freetext_news_summary_tool(input: str, num_weeks_ago: int) -> str:
+def refinitiv_freetext_news_summary_tool(input: str) -> str:
     """
     Queries the Refinitiv News API for news articles related to the free text input
     which have happened in the last num_weeks_ago.
-    Then summarises the news articles and returns the summaryy or enriched headlines.
-
-    Refinitiv is better for English than Chinese news articles.
+    Then summarises the news articles and returns the summary of enriched headlines.
     """
-    return
+    base_header = create_rkd_base_header(RKD_USERNAME, RKD_PASSWORD, RKD_APP_ID)
+
+    # freetext headline search; set last_n_weeks as 2; queries both headline and body
+    # for english text (Refinitiv is better for English than Chinese queries).
+    freetext_results = retrieve_freetext_headlines(base_header, input, 2, "both", "EN")
+    freetext_news_articles = parse_freetext_headlines(freetext_results)
+
+    # load full news stories related to those headlines
+    news_stories = retrieve_news_stories(
+        base_header, [article.id for article in freetext_news_articles]
+    )
+    news_stories_texts = parse_news_stories_texts(news_stories)
+
+    # summarise the news stories
+    article_summaries = summarise_articles(
+        chat_llm=CHAT_LLM,
+        text_splitter=TEXT_SPLITTER,
+        article_headlines=[a.headline for a in freetext_news_articles],
+        article_texts=news_stories_texts,
+    )
+
+    # produce meta summary
+    meta_summary = produce_meta_summary(CHAT_LLM, TEXT_SPLITTER, article_summaries)
+    return meta_summary
 
 
 @tool("hsbc knowledge search tool")
@@ -35,7 +90,7 @@ def hsbc_knowledge_tool(input: str) -> str:
 @tool("reject tool", return_direct=True)
 def reject_tool(input: str) -> str:
     # LLM agent sometimes will not reject question not related to HSBC, hence adding this tools to stop the thought/action process
-    """ useful for when you need to answer questions not related to HSBC """
+    """useful for when you need to answer questions not related to HSBC"""
     return """
     I'm sorry, but as a customer service chatbot for HSBC Hongkong, I am only able to assist with questions related to HSBC Hongkong products and services. 
     Is there anything else related to HSBC Hongkong that I can help you with?
