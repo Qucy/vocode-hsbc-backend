@@ -21,6 +21,11 @@ pip install -r requirements.txt
 ```
 This will install all the necessary libraries listed in the requirements.txt file.
 
+Finally manually install langchain via below command, the current langchain installed via vocodo liberary is out of date.
+```bash
+pip install langchain==0.0.209
+```
+
 ### Running the Application
 
 To start the application, run the following command:
