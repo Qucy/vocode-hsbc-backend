@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 from typing import AsyncGenerator, Optional, Tuple
 from vocode.streaming.agent.base_agent import RespondAgent
@@ -39,22 +40,27 @@ class AzureChatGPTAgent(RespondAgent[ChatGPTAgentConfig]):
         os.environ["OPENAI_API_VERSION"] = os.getenv('AZURE_OPENAI_API_VERSION')
 
         # create llm model
-        self.llm = AzureChatOpenAI(deployment_name=os.getenv('AZURE_OPENAI_API_ENGINE'))
+        self.llm = AzureChatOpenAI(deployment_name=os.getenv('AZURE_OPENAI_API_ENGINE'), model=os.getenv('AZURE_OPENAI_API_MODEL'))
 
         # create tools
         self.tools = [hsbc_knowledge_tool, reject_tool]
 
         # create memory, window size = 10
-        self.memory = ConversationBufferWindowMemory(k=10)
+        self.memory = ConversationBufferWindowMemory(memory_key='chat_history',k=10, return_messages=True)
 
         # create agent
-        self.agent = initialize_agent(
+        self.agent_chain = initialize_agent(
             tools=self.tools,
             llm=self.llm,
-            agent_type=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+            agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+            verbose=True,
             memory=self.memory,
-            verbose=True
+            agent_kwargs={
+                "system_message": PROMPT_PREFIX
+            }
         )
+
+        print(self.agent_chain.agent.llm_chain)
 
     async def generate_response(
         self,
@@ -72,14 +78,16 @@ class AzureChatGPTAgent(RespondAgent[ChatGPTAgentConfig]):
             return
         # check if transcript is set
         assert self.transcript is not None
-        # get response from llm
-        response = self.agent.run(input=human_input)
-        # split by space TODO replace by streaming api later
-        messages = response.split(" ")
-        # return generator
-        for message in messages:
-            yield message
-
+        try:
+            # get response from llm
+            response = self.agent_chain.run(input=human_input)
+            # TODO replace by streaming api later
+            messsages = re.split(r'[,.]', response)
+            for message in messsages:
+                yield message
+        except Exception as e:
+            self.logger.error(f"Error generating response: {e}")
+            yield "Sorry, I am not able to answer your question at the moment."
     
     async def respond(
         self,
