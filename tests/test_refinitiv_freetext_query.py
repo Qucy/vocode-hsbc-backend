@@ -1,12 +1,16 @@
-from src.refinitiv_query import (
-    create_rkd_base_header,
-    retrieve_freetext_headlines,
-    parse_freetext_headlines,
-    NewsArticle,
-)
-import os
 import datetime
+import os
+
 from dotenv import load_dotenv
+
+from src.refinitiv_query import (
+    NewsArticle,
+    create_rkd_base_header,
+    parse_freetext_headlines,
+    parse_news_stories_texts,
+    retrieve_freetext_headlines,
+    retrieve_news_stories,
+)
 
 # load environment variables
 load_dotenv()
@@ -63,3 +67,42 @@ def test_parse_freetext_headline():
     assert isinstance(first_article.id, str)
     assert isinstance(first_article.creation_date, datetime.date)
     assert isinstance(first_article.headline, str)
+
+
+def test_retrieve_news_stories():
+    """Test freetext query on RKD and the parser for it.
+    Then retrieve the top news stories."""
+
+    base_header = create_rkd_base_header(RKD_USERNAME, RKD_PASSWORD, RKD_APP_ID)
+
+    freetext_results = retrieve_freetext_headlines(
+        base_header, "America", 4, "both", "EN"
+    )
+
+    freetext_news_articles = parse_freetext_headlines(freetext_results)
+    news_stories = retrieve_news_stories(
+        base_header, [article.id for article in freetext_news_articles]
+    )
+    assert isinstance(news_stories, list)
+    assert len(news_stories) > 0
+    assert isinstance(news_stories[0], dict)
+
+
+def test_parse_news_stories():
+    """Test freetext query on RKD and the parser for it; as well as the story retrieval
+    and parser for that also."""
+
+    base_header = create_rkd_base_header(RKD_USERNAME, RKD_PASSWORD, RKD_APP_ID)
+
+    freetext_results = retrieve_freetext_headlines(
+        base_header, "America", 4, "both", "EN"
+    )
+
+    freetext_news_articles = parse_freetext_headlines(freetext_results)
+    news_stories = retrieve_news_stories(
+        base_header, [article.id for article in freetext_news_articles]
+    )
+    news_stories_texts = parse_news_stories_texts(news_stories)
+    assert isinstance(news_stories_texts, list)
+    assert len(news_stories_texts) > 0
+    assert isinstance(news_stories_texts[0], str)

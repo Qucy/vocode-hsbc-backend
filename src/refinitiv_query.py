@@ -1,7 +1,9 @@
-from .utils import send_post_request
 import datetime
 import json
 from dataclasses import dataclass
+from typing import Any
+
+from .utils import send_post_request
 
 
 @dataclass
@@ -9,6 +11,10 @@ class NewsArticle:
     id: str
     creation_date: datetime.date
     headline: str
+    topics: list[str]
+    companies: list[str]
+    language: str
+    story: str = None  # retrieve when querying full news story
 
 
 def create_rkd_authorisation(username: str, password: str, appid: str) -> str:
@@ -64,7 +70,11 @@ def create_rkd_base_header(username: str, password: str, app_id: str) -> dict[st
 
 
 def retrieve_freetext_headlines(
-    base_header, query, n_weeks_prior: int, query_aspect="headline", lang="EN"
+    base_header: dict[str, str],
+    query: str,
+    n_weeks_prior: int,
+    query_aspect="headline",
+    lang="EN",
 ) -> list[dict[str, str]]:
     """Perform free-text query on RKD; get headlines with query.
     Documentation on output fields available:
@@ -143,6 +153,58 @@ def parse_freetext_headlines(
                 id=ftr["ID"],
                 creation_date=formatted_date,
                 headline=ftr["HT"],
+                topics=ftr["TO"].split(" ") if ftr["TO"] else [],
+                companies=ftr["CO"].split(" ") if ftr["CO"] else [],
+                language=ftr["LN"],
+                story=None,  # retrieve when querying full news story
             )
         )
     return freetext_stories
+
+
+def retrieve_news_stories(
+    base_header: dict[str, str], story_ids: list[str]
+) -> list[dict[str, Any]]:
+    """Retrieve news stories for given story ids from RKD.
+    :param: base_header: Post request header containing auth token
+    :param: story_ids: List of story ids to retrieve
+    :returns: List of dictionaries containing news objects.
+    """
+
+    # Get news stories
+    news_stories_url = (
+        "http://api.rkd.refinitiv.com/api/News/News.svc/REST/News_1/RetrieveStoryML_1"
+    )
+
+    news_stories_line = {
+        "RetrieveStoryML_Request_1": {
+            "StoryMLRequest": {"StoryId": [story_ids]},
+        }
+    }
+    # get news stories result
+    news_stories_result = send_post_request(
+        news_stories_url, news_stories_line, base_header
+    )
+    # load result; assume Result is a valid JSON string
+    news_stories_result = json.loads(
+        news_stories_result.text, parse_int=str, parse_float=float
+    )["RetrieveStoryML_Response_1"]["StoryMLResponse"]
+    assert news_stories_result["Status"]["StatusMsg"] == "OK", "News request failed"
+
+    return news_stories_result["STORYML"]["HL"]
+
+
+def parse_news_stories_texts(news_stories_results: list[dict[str, Any]]) -> list[str]:
+    """Parse news stories results from RKD and return a list of news story texts.
+    Skip news stories that do not have 'Usable' status.
+    :param news_stories_results: A list of dictionaries containing full news stories results from RKD.
+    :returns: A list of news story texts parsed from the news stories results.
+    """
+    news_stories_texts = []
+    for nsr in news_stories_results:
+        if "ST" not in nsr or nsr["ST"] != "Usable":
+            continue
+        if "TE" not in nsr:
+            continue
+        news_stories_texts.append(nsr["TE"])
+    return news_stories_texts

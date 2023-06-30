@@ -1,5 +1,6 @@
-import requests
 import json
+
+import requests
 
 
 def send_post_request(
