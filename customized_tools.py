@@ -38,7 +38,7 @@ CHAT_LLM = AzureOpenAI(
 TEXT_SPLITTER = RecursiveCharacterTextSplitter(chunk_size=7_000, chunk_overlap=400)
 
 
-@tool("Refinitiv freetext news search tool")
+@tool("Refinitiv freetext news search summary tool")
 def refinitiv_freetext_news_summary_tool(input: str) -> str:
     """
     Queries the Refinitiv News API for news articles related to the free text input
