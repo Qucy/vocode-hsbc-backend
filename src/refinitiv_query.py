@@ -55,7 +55,10 @@ def create_rkd_authorisation(username: str, password: str, appid: str) -> str:
 
 
 def create_rkd_base_header(username: str, password: str, app_id: str) -> dict[str, str]:
-    """Create base header for rkd request which includes token creation/authentication."""
+    """Create base header for rkd request which includes token creation/authentication.
+    :param username: The username for RKD authorisation.
+    :param password: The password for RKD authorisation.
+    :param appid: The application ID for RKD authorisation."""
 
     # Create Authorisation token
     token = create_rkd_authorisation(username, password, app_id)
