@@ -23,7 +23,7 @@ pip install -r requirements.txt
 
 This will install all the necessary libraries listed in the requirements.txt file.
 
-Finally manually install langchain via below command, the current langchain installed via vocodo liberary is out of date. And ignore the warning message (vocode 0.1.110 requires langchain<0.0.150,>=0.0.149, but you have langchain 0.0.216 which is incompatible.)
+Finally manually install langchain via below command, the current langchain installed via vocodo liberary is out of date. And ignore the warning message (vocode 0.1.110 requires langchain<0.0.150,>=0.0.149)
 ```bash
 pip install langchain==0.0.216
 ```
