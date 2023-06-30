@@ -1,23 +1,19 @@
 """ This is a file for custom tools that you can use in the LLM agent
 """
-from langchain.tools import tool
-
 import os
+
 from dotenv import load_dotenv
 from langchain.llms import AzureOpenAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.tools import tool
 
+from src.langchain_summary import produce_meta_summary, summarise_articles
 from src.refinitiv_query import (
     create_rkd_base_header,
     parse_freetext_headlines,
     parse_news_stories_texts,
     retrieve_freetext_headlines,
     retrieve_news_stories,
-)
-
-from src.langchain_summary import (
-    summarise_articles,
-    produce_meta_summary,
 )
 
 # load environment variables
@@ -69,6 +65,22 @@ def refinitiv_freetext_news_summary_tool(input: str) -> str:
     # produce meta summary
     meta_summary = produce_meta_summary(CHAT_LLM, TEXT_SPLITTER, article_summaries)
     return meta_summary
+
+
+@tool("document question answering")
+def document_question_answering(input: str) -> str:
+    """
+    For a given question, find the answer from a given document, load that document
+    into a FAISS index and retrieve aspects relevant to the query. Then use
+    using the langchain question answering chain to formulate answer.
+
+    TODO: find a way to load the document; this is a work in progress. Maybe
+    we can load documents directly based on input from a vector and QA dierctly.
+    """
+
+    # TODO: How to load files..
+
+    return "TODO"
 
 
 @tool("hsbc knowledge search tool")
