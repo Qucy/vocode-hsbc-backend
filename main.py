@@ -39,13 +39,13 @@ conversation_router = ConversationRouter(
             ),
         )
     ),
-    # create transcriber
+    # create transcriber for STT
     transcriber_thunk=lambda input_audio_config: AzureTranscriber(
         AzureTranscriberConfig.from_input_audio_config(
             input_audio_config=input_audio_config
         )
     ),
-    # create synthesizer
+    # create synthesizer for TTS
     synthesizer_thunk=lambda output_audio_config: AzureSynthesizer(
         AzureSynthesizerConfig.from_output_audio_config(
             output_audio_config, voice_name=os.getenv("AZURE_SPEECH_VOICE_NAME")

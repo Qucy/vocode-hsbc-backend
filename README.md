@@ -63,13 +63,11 @@ SPEECH_WELCOME_MESSAGE=[your welcome message]
 
 Please replace the values in square brackets with your own values for the respective services and settings. These environment variables are used to configure the language and speech services used by the application, as well as to set other application settings such as the welcome message.
 
-## Testing
+## Airflow job
 
-```bash
-pip install pytest
-pytest -v -rP
-pytest ./tests/test_file.py::test_func
-```
+In this project, Airflow is used to scrape knowledge information from the HSBC website. The knowledge information is scraped on a daily basis and stored in a database.
+
+The Airflow job is configured and running on GCP MapleQuad. The console address for the Airflow job is https://t6dc1abd119b5dff1p-tp.appspot.com/home.
 
 ## Deployment
 
