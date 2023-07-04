@@ -73,7 +73,14 @@ pytest ./tests/test_file.py::test_func
 
 ## Deployment
 
-Coming soon...
+The backend and frontend have been successfully deployed to MapleQuad GCP, along with all the required libraries including Python 3.11, Node v18, and React.js. Therefore, redeploying the code is a matter of stopping the current service, removing the current source code folder for the backend or frontend, cloning the new code, and restarting the service.
+
+The backend code is located in the following path: /root/vocode-hsbc-backend
+The frontend code is located in the following path: /root/vocode-hsbc-frontend
+The venv Python environment has been created at: /root/vocode_python_env
+
+To start or stop the application, navigate to the project root folder and use the provided start.sh and stop.sh scripts. Remember to run chmod +x *sh to make the scripts executable before running them.
+
 
 ## Contributing
 

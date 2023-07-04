@@ -1,7 +1,6 @@
 """ This is a DAG to scrapy HSBC HK homepage info and deploy on GCP MapleQuad's Airflow
 The knowledge will be stored in a txt file and upload to GCS bucket
 """
-
 import re
 import requests
 import json
@@ -11,15 +10,12 @@ from airflow import DAG
 from airflow.decorators import task
 from bs4 import BeautifulSoup
 
-
 # init variables
 project_id = 'hsbc-1044360-ihubasp-sandbox'
-bucket_name = 'gs://openrice_scrapy_for_dining_recommendation/hsbc_knowledge/'
+bucket_name = 'openrice_scrapy_for_dining_recommendation/hsbc_knowledge' # openrice_scrapy_for_dining_recommendation/hsbc_knowledge
 homepage_url = 'https://www.hsbc.com.hk/'
 wealth_insigths_articles = 'https://www.hsbc.com.hk/wealth/insights.load-wih-articles.json'
 chinese_pattern = re.compile("[\u4e00-\u9fff\u3400-\u4dbf]+")
-
-
 
 def scrape_content_by_url(url: str):
     """ scrape content by url
@@ -64,9 +60,10 @@ def copy_file_to_gcs_bucket(bucket_name, source_file_name, destination_blob_name
     blob = bucket.blob(destination_blob_name)
     # Upload the file to GCS
     blob.upload_from_filename(source_file_name)
-    print('File {} uploaded to {}.'.format(source_file_name, destination_blob_name))
+    print(f"File {source_file_name} uploaded to {destination_blob_name}.")    
 
-# @task(task_id='scrapy')
+
+@task(task_id='scrapy')
 def extract_knowledge():
     """
     Extract knowledge from hsbc homepage and wealth insights
@@ -120,7 +117,7 @@ def extract_knowledge():
 
 
 with DAG(
-    'hsbc-homepage-scrapy-job',
+    'hsbc-knowledge-scrapy-job',
     default_args={
         'depends_on_past': False,
         'email': ['tracyqucy@gmail.com'],
@@ -128,7 +125,7 @@ with DAG(
         'email_on_retry': False,
         'retries': 0
     },
-    description='DAG to scrapy HSBC HK homepage info',
+    description='DAG to scrapy HSBC HK homepage knowledge and weath insights and upload to GCS bucket',
     schedule_interval='0 8 * * *',
     start_date=datetime(2023, 6, 29),
     catchup=False,
