@@ -2,13 +2,20 @@
 """
 import os
 
+from azure.ai.formrecognizer import DocumentAnalysisClient
+from azure.core.credentials import AzureKeyCredential
 from dotenv import load_dotenv
+from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.llms import AzureOpenAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.tools import tool
 
+from src.docsearch.docsearch import (
+    docsearch_create_indexes_from_files,
+    docsearch_query_indexes,
+)
 from src.langchain_summary import produce_meta_summary, summarise_articles
-from src.refinitiv_query import (
+from src.newsearch.refinitiv_query import (
     create_rkd_base_header,
     parse_freetext_headlines,
     parse_news_stories_texts,
@@ -67,21 +74,44 @@ def refinitiv_freetext_news_summary_tool(input: str) -> str:
     return meta_summary
 
 
-@tool("document question answering")
+@tool("document question answering", return_direct=True)
 def document_question_answering(input: str) -> str:
     """
-    For a given question, find the answer from a given document, load that document
-    into a FAISS index and retrieve aspects relevant to the query. Then use
-    using the langchain question answering chain to formulate answer.
-
-    TODO: find a way to load the document; this is a work in progress. Maybe
-    we can load documents directly based on input from a vector and QA dierctly.
+    Answers questions related to HSBC knowledge documents and gives answers
+    from HSBC's perspective on topics.
     """
 
-    # TODO: How to load files..
-    # TODO: Do we actually want to implement this?
+    # initialise docsearch variables
+    NUM_DIMENSIONS = 1536
+    EMBEDDINGS_MODEL = OpenAIEmbeddings(model="text-embedding-ada-002")
 
-    return "TODO"
+    ENDPOINT = os.getenv("FORM_RECOGNISER_ENDPOINT")
+    CREDENTIAL = AzureKeyCredential(os.getenv("FORM_RECOGNISER_KEY"))
+    DOC_ANALYSIS_CLIENT = DocumentAnalysisClient(ENDPOINT, CREDENTIAL)
+
+    # text splitter with smaller chunk size because docs are larger
+    TEXT_SPLITTER = RecursiveCharacterTextSplitter(chunk_size=3_000, chunk_overlap=300)
+
+    # TODO: Right now loads from a sample directory; need to find a way to load
+    # from a vector database or otherwise? would this be pre-loaded??
+    # Then can replace FAISS lookup for sample documents.
+    FILES_DIR = "./data/pdf_img_samples/"
+    uploaded_files = [os.path.join(FILES_DIR, f) for f in os.listdir(FILES_DIR)]
+
+    # create faiss index and index_doc_store
+    faiss_index, index_doc_store = docsearch_create_indexes_from_files(
+        NUM_DIMENSIONS,
+        uploaded_files,
+        DOC_ANALYSIS_CLIENT,
+        EMBEDDINGS_MODEL,
+        TEXT_SPLITTER,
+    )
+
+    # query faiss index
+    result = docsearch_query_indexes(
+        input, faiss_index, index_doc_store, EMBEDDINGS_MODEL, CHAT_LLM
+    )
+    return result
 
 
 @tool("hsbc knowledge search tool")

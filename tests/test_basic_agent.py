@@ -1,13 +1,13 @@
 import os
+
 from dotenv import load_dotenv
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-
-from customized_tools import refinitiv_freetext_news_summary_tool
-from langchain.agents import load_tools, initialize_agent
-from langchain.agents import AgentType
-
+from langchain.agents import AgentType, initialize_agent, load_tools
 from langchain.chat_models import AzureChatOpenAI
 
+from customized_tools import (
+    document_question_answering,
+    refinitiv_freetext_news_summary_tool,
+)
 
 # load environment variables
 load_dotenv()
@@ -21,7 +21,6 @@ RKD_APP_ID = os.getenv("REFINITIV_APP_ID")
 CHAT_LLM = AzureChatOpenAI(
     deployment_name=os.getenv("AZURE_OPENAI_API_ENGINE"), temperature=0
 )
-TEXT_SPLITTER = RecursiveCharacterTextSplitter(chunk_size=7_000, chunk_overlap=400)
 
 
 def test_basic_agent_news_search():
@@ -41,6 +40,31 @@ def test_basic_agent_news_search():
     # print(generic_agent("What is 5+5?"))
 
     result = generic_agent("What is the latest news headline?")
+    assert isinstance(result, dict)
+    assert isinstance(result["input"], str)
+    assert isinstance(result["output"], str)
+    assert len(result["output"]) > 0
+
+    print(result)
+
+
+def test_basic_agent_docsearch():
+    """Test basic agent with news search tool."""
+
+    # initialise tools
+    tools = load_tools(["llm-math"], llm=CHAT_LLM)
+
+    # initialise agent
+    generic_agent = initialize_agent(
+        tools + [document_question_answering],
+        CHAT_LLM,
+        agent=AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION,
+        handle_parsing_errors=True,
+        verbose=True,
+    )
+    # print(generic_agent("What is 5+5?"))
+
+    result = generic_agent("what is HSBCs house view on investments?")
     assert isinstance(result, dict)
     assert isinstance(result["input"], str)
     assert isinstance(result["output"], str)
