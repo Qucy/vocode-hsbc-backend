@@ -6,8 +6,12 @@ from langchain.chat_models import AzureChatOpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-from src.faiss_qa import embed_file, query_text_qa, retrieve_faiss_indexes_from_text
-from src.pdf_query import parse_pdf
+from src.docsearch.faiss_qa import (
+    embed_file,
+    query_text_qa,
+    retrieve_faiss_indexes_from_text,
+)
+from src.docsearch.pdf_parser import parse_pdf
 
 load_dotenv()
 

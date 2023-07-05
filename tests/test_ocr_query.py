@@ -9,8 +9,12 @@ from langchain.chat_models import AzureChatOpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-from src.faiss_qa import embed_file, query_text_qa, retrieve_faiss_indexes_from_text
-from src.ocr_query import extract_text_from_img
+from src.docsearch.faiss_qa import (
+    embed_file,
+    query_text_qa,
+    retrieve_faiss_indexes_from_text,
+)
+from src.docsearch.ocr_parser import extract_text_from_img
 
 # load environment variables
 load_dotenv()
