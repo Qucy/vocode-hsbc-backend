@@ -2,7 +2,7 @@ import re
 from io import BytesIO
 
 from langchain.docstore.document import Document
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 
 
 def parse_pdf(file: str | BytesIO) -> list[Document]:
