@@ -2,26 +2,82 @@
 The knowledge will be stored in a txt file and upload to GCS bucket
 """
 import re
-import requests
+import os
 import json
-from datetime import datetime
-from google.cloud import storage
+import requests
+import openai
+import psycopg2
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.decorators import task
 from bs4 import BeautifulSoup
+from pydantic import BaseModel
+from typing import Union, List
 
 # init variables
-project_id = 'hsbc-1044360-ihubasp-sandbox'
-bucket_name = 'openrice_scrapy_for_dining_recommendation/hsbc_knowledge' # openrice_scrapy_for_dining_recommendation/hsbc_knowledge
-homepage_url = 'https://www.hsbc.com.hk/'
-wealth_insigths_articles = 'https://www.hsbc.com.hk/wealth/insights.load-wih-articles.json'
+homepage_url = os.getenv('hsbc_homepage_url')
+wealth_insigths_articles = os.getenv('wealth_insigths_articles')
 chinese_pattern = re.compile("[\u4e00-\u9fff\u3400-\u4dbf]+")
+
+# pgsql configuration
+host = os.getenv('pg_host')
+dbname = os.getenv('pg_db_name')
+user = os.getenv('pg_user')
+password = os.getenv('pg_password')
+sslmode = os.getenv('pg_sslmode')
+
+# openai configuration
+openai.api_key = os.getenv('openai_api_key')
+openai.api_version = os.getenv('openai_api_version')
+openai.api_type = os.getenv('openai_api_type')
+openai.api_base = os.getenv('openai_api_base')
+
+# Construct connection string
+conn_string = f"host={host} user={user} dbname={dbname} password={password} sslmode={sslmode}"
+conn = psycopg2.connect(conn_string) 
+
+# ================================== OPENAI Response model ==================================
+class OPENAICompletionResponseChoiceMessage(BaseModel):
+    """
+    OPENAI response model
+    """
+    role: str
+    content: str
+
+class OPENAICompletionResponseChoice(BaseModel):
+    """
+    OPENAI response model
+    """
+    index: int
+    finish_reason: Union[str, None] = None
+    message: Union[OPENAICompletionResponseChoiceMessage, None] = None
+
+class OPENAICompletionResponseUsage(BaseModel):
+    """
+    OPENAI response model
+    """
+    completion_tokens: int
+    prompt_tokens: int
+    total_tokens: int
+
+class OPENAICompletionResponse(BaseModel):
+    """
+    OPENAI response model
+    """
+    id: str
+    object: str
+    created: int
+    model: str
+    choices: List[OPENAICompletionResponseChoice] = list()
+    usage: Union[OPENAICompletionResponseUsage, None] = None
+# ================================== OPENAI Response model ==================================
 
 def scrape_content_by_url(url: str):
     """ scrape content by url
     """
     # Send a GET request to the webpage URL
     response = requests.get(url, timeout=5)
+
     # Parse the HTML content using BeautifulSoup
     soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -29,6 +85,7 @@ def scrape_content_by_url(url: str):
     text = soup.get_text()
     text = re.sub('\s+', ' ', text).strip().lower()
     text = chinese_pattern.sub("", text)
+    
     return text
 
 
@@ -49,18 +106,60 @@ def retreive_urls_by_parent_url():
     urls = [url for url in urls if url not in ('/', '/zh-hk/', '/zh-cn/')]
     return urls
 
-def copy_file_to_gcs_bucket(bucket_name, source_file_name, destination_blob_name):
+def summarization(content: str):
+    # genrate prompt
+    system_prompt = {"role" : "system", "content" : f"You are a text summarization assistant, help people summarize their text."}
+    user_prompt = {"role" : "user", "content" : f"Summarize <{content}> in english in 800-1000 words."}
+    # generate messages
+    messages = [system_prompt, user_prompt]
+    # generate response
+    response = openai.ChatCompletion.create(
+        engine=os.getenv('openai_engine'),
+        max_tokens=1000,
+        temperature=.7,
+        top_p=1.0,
+        presence_penalty=0.0,
+        frequency_penalty=0.0,
+        messages=messages,
+    )
+    # conver to data model
+    openAICompletionResponse = OPENAICompletionResponse.parse_obj(response)
+    # return content
+    if len(openAICompletionResponse.choices) == 0:
+        return ""
+    else:
+        return openAICompletionResponse.choices[0].message.content
+    
+def embedding_calculation(content: str):
+    """Embedding calculation
     """
-    Copy a local file to a GCS bucket
+    response = openai.Embedding.create(
+        input="content",
+        engine="text-embedding-ada-002"
+    )
+    embeddings = response['data'][0]['embedding']
+    return embeddings
+
+def save_to_pgsql(url, keywords, content, embedding):
+    """ save to pgsql
     """
-    # Instantiate a client
-    storage_client = storage.Client()
-    # Set the bucket and blob names
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(destination_blob_name)
-    # Upload the file to GCS
-    blob.upload_from_filename(source_file_name)
-    print(f"File {source_file_name} uploaded to {destination_blob_name}.")    
+    try:
+        # remove special characters from content to avoid insert error
+        content = content.replace("'", "''")
+        # generate sql
+        sql = f"""
+        delete from hsbc_homepage_content where url = '{url}';
+        insert into hsbc_homepage_content (url, keywords, content, embedding) values ('{url}', '{keywords}', '{content}', '{embedding}');
+        """
+        # create a cursor
+        cursor = conn.cursor()
+        # execute sql
+        cursor.execute(sql)
+        # commit the changes to the database
+        conn.commit()
+    finally:
+        # close communication with the database
+        cursor.close()
 
 
 @task(task_id='scrapy')
@@ -80,16 +179,17 @@ def extract_knowledge():
             if len(content) < 50:
                 print('Skip current url -> content less than 50 words with url=%s' % url)
                 continue
-            # append content into a txt file
-            with open('/tmp/knowledge.txt', 'a') as f:
-                print(f"Append knowledge with url={url}")
-                f.write('Key Words: {}\n'.format(key_words))
-                f.write('Content: {}\n\n'.format(content))
+            # send content to LLM to do summaraization before feed into vector store
+            summary = summarization(content)
+            # send summary to LLM to calc embedding
+            embedding = embedding_calculation(summary)
+            # save into pg vector store
+            save_to_pgsql(url, key_words, summary, embedding)
+            # log
+            print(f"Successfuly saved embedding for {url}, content length {len(content)}, summary length {len(summary)}, embedding length {len(embedding)}")
+           
         except Exception as e:
-            print('Skip current url -> error occurred when scraping content from url=%s with error=%s' % (url, e))
-
-    # copy the knowledge.txt to GCS bucket
-    copy_file_to_gcs_bucket(bucket_name, '/tmp/knowledge.txt', 'knowledge.txt')
+            print(f'Skip current url -> error occurred when scraping content from [{url}] with error:[{e}]')
 
     # extract wealth insights content
     try:
@@ -99,34 +199,33 @@ def extract_knowledge():
             data = json.loads(response.text)
             for article in data:
                 title, href = article["title"], article["href"]
-                print(title, href)
                 # retreive content
                 content = scrape_content_by_url(href)
-                # append content into a txt file
-                with open('/tmp/wealth_insights.txt', 'a') as f:
-                    f.write('Title: {}\n'.format(title))
-                    f.write('URL: {}\n'.format(href))
-                    f.write('Content: {}\n\n'.format(content))    
+                # send content to LLM to do summaraization before feed into vector store
+                summary = summarization(content)
+                # send summary to LLM to calc embedding
+                embedding = embedding_calculation(summary)
+                # save into pg vector store
+                save_to_pgsql(href, title, summary, embedding)
+                # log
+                print(f"Successfuly saved embedding for {href}, content length {len(content)}, summary length {len(summary)}, embedding length {len(embedding)}") 
         else:
             print("Error: Could not retrieve JSON data")
     except Exception as e:
         print('Error occurred when scraping wealth insights content with error=%s' % e)
-
-    # copy the wealth insights content to GCS bucket
-    copy_file_to_gcs_bucket(bucket_name, '/tmp/wealth_insights.txt', 'wealth_insights.txt')
 
 
 with DAG(
     'hsbc-knowledge-scrapy-job',
     default_args={
         'depends_on_past': False,
-        'email': ['tracyqucy@gmail.com'],
         'email_on_failure': True,
         'email_on_retry': False,
-        'retries': 0
+        'retries': 0,
+        'dagrun_timeout': timedelta(hours=4) 
     },
     description='DAG to scrapy HSBC HK homepage knowledge and weath insights and upload to GCS bucket',
-    schedule_interval='0 8 * * *',
+    schedule_interval='0 2 * * *',
     start_date=datetime(2023, 6, 29),
     catchup=False,
     tags=['hsbc','homepage','scrape'],
@@ -135,3 +234,7 @@ with DAG(
     t1 = extract_knowledge()
 
     t1
+
+# if __name__ == "__main__":
+#     extract_knowledge()
+
