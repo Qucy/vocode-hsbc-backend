@@ -3,7 +3,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from .utils import send_post_request
+from ..utils import send_post_request
 
 
 @dataclass

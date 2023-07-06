@@ -3,7 +3,7 @@ import os
 
 from dotenv import load_dotenv
 
-from src.refinitiv_query import (
+from src.newsearch.refinitiv_query import (
     NewsArticle,
     create_rkd_base_header,
     parse_freetext_headlines,
