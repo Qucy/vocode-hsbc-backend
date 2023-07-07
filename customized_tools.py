@@ -1,6 +1,8 @@
 """ This is a file for custom tools that you can use in the LLM agent
 """
 import os
+import psycopg2
+import openai
 
 from azure.ai.formrecognizer import DocumentAnalysisClient
 from azure.core.credentials import AzureKeyCredential
@@ -31,6 +33,12 @@ RKD_USERNAME = os.getenv("REFINITIV_USERNAME")
 RKD_PASSWORD = os.getenv("REFINITIV_PASSWORD")
 RKD_APP_ID = os.getenv("REFINITIV_APP_ID")
 
+# openai configuration
+openai.api_key = os.getenv('AZURE_OPENAI_API_KEY')
+openai.api_version = os.getenv('AZURE_OPENAI_API_VERSION')
+openai.api_type = os.getenv('AZURE_OPENAI_API_TYPE')
+openai.api_base = os.getenv('AZURE_OPENAI_API_BASE')
+
 # Create an instance of Azure OpenAI; find completions is faster than chat
 CHAT_LLM = AzureOpenAI(
     deployment_name="text-davinci-003",
@@ -39,6 +47,17 @@ CHAT_LLM = AzureOpenAI(
     best_of=1,
 )
 TEXT_SPLITTER = RecursiveCharacterTextSplitter(chunk_size=7_000, chunk_overlap=400)
+
+# Create database connection
+host = os.getenv('PG_HOST')
+dbname = os.getenv('PG_DB_NAME')
+user = os.getenv('PG_USER')
+password = os.getenv('PG_PASSWORD')
+sslmode = os.getenv('PG_SSLMODE')
+
+# Construct connection string
+conn_string = f"host={host} user={user} dbname={dbname} password={password} sslmode={sslmode}"
+conn = psycopg2.connect(conn_string)
 
 
 @tool("Refinitiv freetext news search summary tool", return_direct=True)
@@ -115,19 +134,26 @@ def document_question_answering(input: str) -> str:
 
 
 @tool("hsbc knowledge search tool")
-def hsbc_knowledge_tool(input: str) -> str:
+def hsbc_knowledge_tool_pgvector(input: str) -> str:
     """useful for when you need to answer questions about hsbc related knowledge"""
-    # TODO need to be replace by vector search later
-    return """
-        Need to open a bank account with HSBC HK? You can apply with us if you:
-            - are at least 18 years old
-            - meet additional criteria depending on where you live
-            - have proof of ID, proof of address
-        If customer wants to apply online via mobile app:
-            - They need to download the HSBC HK App to open an account online.
-            - holding an eligible Hong Kong ID or an overseas passport
-            - new to HSBC
-    """
+    try:
+        # get embedding from input
+        response = openai.Embedding.create(input=input, engine="text-embedding-ada-002")
+        embeddings = response['data'][0]['embedding']
+        # create cursor
+        cur = conn.cursor()
+        # execute query
+        cur.execute(f"SELECT content FROM hsbc_homepage_content ORDER BY embedding <-> '{embeddings}' LIMIT 1;")
+        # retrieve records
+        records = cur.fetchall()
+        # close cursor
+        cur.close()
+        # return answer
+        return records[0][0]
+    except Exception as e:
+        print(e)
+        return "Sorry, I don't understand your question. Please try again."
+
 
 
 @tool("reject tool", return_direct=True)

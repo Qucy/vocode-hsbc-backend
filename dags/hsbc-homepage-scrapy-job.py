@@ -106,10 +106,10 @@ def retreive_urls_by_parent_url():
     urls = [url for url in urls if url not in ('/', '/zh-hk/', '/zh-cn/')]
     return urls
 
-def summarization(content: str):
+def knowledge_extraction(key_words:str, content: str):
     # genrate prompt
-    system_prompt = {"role" : "system", "content" : f"You are a text summarization assistant, help people summarize their text."}
-    user_prompt = {"role" : "user", "content" : f"Summarize <{content}> in english in 800-1000 words."}
+    system_prompt = {"role" : "system", "content" : f"You are a knowledge extract assistant, help people extract key information."}
+    user_prompt = {"role" : "user", "content" : f"Extract <{key_words}> related information from <{content}> in english around 1000 words."}
     # generate messages
     messages = [system_prompt, user_prompt]
     # generate response
@@ -180,13 +180,13 @@ def extract_knowledge():
                 print('Skip current url -> content less than 50 words with url=%s' % url)
                 continue
             # send content to LLM to do summaraization before feed into vector store
-            summary = summarization(content)
+            knowledge = knowledge_extraction(key_words, content)
             # send summary to LLM to calc embedding
-            embedding = embedding_calculation(summary)
+            embedding = embedding_calculation(knowledge)
             # save into pg vector store
-            save_to_pgsql(url, key_words, summary, embedding)
+            save_to_pgsql(url, key_words, knowledge, embedding)
             # log
-            print(f"Successfuly saved embedding for {url}, content length {len(content)}, summary length {len(summary)}, embedding length {len(embedding)}")
+            print(f"Successfuly saved embedding for {url}, content length {len(content)}, knowledge length {len(knowledge)}, embedding length {len(embedding)}")
            
         except Exception as e:
             print(f'Skip current url -> error occurred when scraping content from [{url}] with error:[{e}]')
@@ -202,13 +202,13 @@ def extract_knowledge():
                 # retreive content
                 content = scrape_content_by_url(href)
                 # send content to LLM to do summaraization before feed into vector store
-                summary = summarization(content)
+                knowledge = knowledge_extraction(key_words, content)
                 # send summary to LLM to calc embedding
-                embedding = embedding_calculation(summary)
+                embedding = embedding_calculation(knowledge)
                 # save into pg vector store
-                save_to_pgsql(href, title, summary, embedding)
+                save_to_pgsql(href, title, knowledge, embedding)
                 # log
-                print(f"Successfuly saved embedding for {href}, content length {len(content)}, summary length {len(summary)}, embedding length {len(embedding)}") 
+                print(f"Successfuly saved embedding for {href}, content length {len(content)}, knowledge length {len(knowledge)}, embedding length {len(embedding)}") 
         else:
             print("Error: Could not retrieve JSON data")
     except Exception as e:
