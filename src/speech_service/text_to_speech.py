@@ -14,7 +14,7 @@ speech_config = speechsdk.SpeechConfig(
     subscription=os.environ.get("SPEECH_KEY"), region=os.environ.get("SPEECH_REGION")
 )
 audio_config = speechsdk.audio.AudioOutputConfig(
-    use_default_speaker=False, filename="./file.wav"
+    use_default_speaker=True  # , filename="./file.wav"
 )
 
 # The language of the voice that speaks.
@@ -25,24 +25,32 @@ speech_synthesizer = speechsdk.SpeechSynthesizer(
 )
 
 # Get text from the console and synthesize to the default speaker.
-print("Enter some text that you want to speak >")
-text = input()
+text = """
+Thank you, Martin. So just a Q1 recap. Model Y became the best-selling vehicle of any
+kind in Europe and the best-selling non-pickup vehicle in the United States.
+And this is in spite of a lot of challenges in production and delivery, so it's
+a huge credit to the Tesla team for achieving these great results. The -- it is
+worth pointing out that the current macro environment remains uncertain. I
+don't think I'm telling anyone anything people don't already know, especially
+with large purchases such as cars.
+"""
 
 speech_synthesis_result = speech_synthesizer.speak_text_async(text).get()
 
+print(f"Speech synthesized for text [{text}]")
 
-if speech_synthesis_result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
-    print(f"Speech synthesized for text [{text}]")
+# Create an AudioDataStream instance from the result
+audio_data_stream = speechsdk.AudioDataStream(speech_synthesis_result)
+audio_buffer = bytes(16000)
+filled_size = audio_data_stream.read_data(audio_buffer)
+while filled_size > 0:
+    print("{} bytes received.".format(filled_size))
+    filled_size = audio_data_stream.read_data(audio_buffer)
 
-    # Create an AudioDataStream instance from the result
-    stream = speechsdk.AudioDataStream(speech_synthesis_result)
-
-elif speech_synthesis_result.reason == speechsdk.ResultReason.Canceled:
-    cancellation_details = speech_synthesis_result.cancellation_details
-    print(f"Speech synthesis canceled: {cancellation_details.reason}")
-    if cancellation_details.reason == speechsdk.CancellationReason.Error:
-        if cancellation_details.error_details:
-            print(f"Error details: {cancellation_details.error_details}")
-            print("Did you set the speech resource key and region values?")
-else:
-    print("Speech synthesis failed")
+    if speech_synthesis_result.reason == speechsdk.ResultReason.Canceled:
+        cancellation_details = speech_synthesis_result.cancellation_details
+        print(f"Speech synthesis canceled: {cancellation_details.reason}")
+        if cancellation_details.reason == speechsdk.CancellationReason.Error:
+            if cancellation_details.error_details:
+                print(f"Error details: {cancellation_details.error_details}")
+                print("Did you set the speech resource key and region values?")
